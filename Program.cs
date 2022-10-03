@@ -3,28 +3,35 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
 
 namespace dotnetVeritabani
 {
     public class Program
     {
         static void Main(string[] args){
-            GetSqlConnection();
-            GetMySqlConnection();
+            GetAllProducts();
         }
 
-        static void GetMySqlConnection(){
-            string connectionString = @"Data Source = .\SQLEXPRESS; Initial Catalog= Northwind2;Integrated Security=SSPI;";
+        static void GetAllProducts(){
 
-            string  connectionString2 = @"server=localhost;port=3306;database="
-
-            // DRIVER PROVIDER
-            using (var connection = new SqlConnection(connectionString) )
+            using (var connection = GetMySqlConnection() )
             {
                 try
                 {
                     connection.Open();
-                    Console.WriteLine("Bağlantı Sağlandı");
+                    string sql = "select * from Products";
+
+                    MySqlCommand command = new MySqlCommand(sql,connection);
+
+                    MySqlDataReader reader =  command.ExecuteReader();
+
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"name: {reader[3]} price:  {reader[6]} ");
+                    }
+                    reader.Close();
+                    
 
                 }
                 catch (System.Exception e)
@@ -36,6 +43,20 @@ namespace dotnetVeritabani
                     connection.Close();
                 }
             }
+        }
+
+
+
+
+
+        static MySqlConnection GetMySqlConnection(){
+
+            string  connectionString = @"server=localhost;port=3306;database=northwind;user=root;password=mysql123;";
+            // DRIVER PROVIDER
+            return new MySqlConnection(connectionString); 
+            
+
+
 
         }
 
