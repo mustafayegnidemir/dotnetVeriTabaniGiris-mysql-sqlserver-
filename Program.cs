@@ -12,7 +12,8 @@ namespace dotnetVeritabani
         List<Product> GetAllProducts();
         Product GetProductById(int id);
         List<Product> Find(string productName);
-        void Create(Product p);
+        int Count();
+        int Create(Product p);
         void Update(Product p);
         void Delete(int productId);
     }
@@ -26,7 +27,7 @@ namespace dotnetVeritabani
             return new MySqlConnection(connectionString); 
         }
 
-        public void Create(Product p)
+        public int Create(Product p)
         {
             throw new NotImplementedException();
         }
@@ -181,6 +182,42 @@ namespace dotnetVeritabani
             return products;
 
         }
+
+        public int Count()
+        {
+            int count = 0;
+
+            using (var connection = GetMySqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select count(*) from products";
+
+                    MySqlCommand command = new MySqlCommand(sql,connection);
+                    object result =  command.ExecuteScalar();
+
+                    if (result!=null)
+                    {
+                        count = Convert.ToInt32(result);    
+                    }
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return count;
+
+        }
     }
 
     public class MsSQLProductDal : IProductDal
@@ -192,9 +229,41 @@ namespace dotnetVeritabani
             return new SqlConnection(connectionString); 
         }
 
-        public void Create(Product p)
+        public int Create(Product p)
         {
-            throw new NotImplementedException();
+            int result = 0;
+            using (var connection = GetMsSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+                    // sql injection
+                    
+                    string sql = "INSERT INTO Products(ProductName,UnitPrice, Discontinued) VALUES (@productname,@unitprice,@discontinued) ";
+
+                    SqlCommand command = new SqlCommand(sql,connection);
+
+                    command.Parameters.AddWithValue("@productname", p.Name);
+                    command.Parameters.AddWithValue("@unitprice", p.Price);
+                    command.Parameters.AddWithValue("@discontinued", 1);
+
+                    result = command.ExecuteNonQuery();
+
+                    Console.WriteLine($"{result} adet kayıt eklendi");
+
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+                return result;
+            }
+            
         }
 
         public void Delete(int productId)
@@ -258,9 +327,88 @@ namespace dotnetVeritabani
             throw new NotImplementedException();
         }
 
-        public List<Product> Find(string productName)
+        public List<Product> Find(string ProductName)
         {
-            throw new NotImplementedException();
+            List<Product> products = null;
+
+            using (var connection = GetMsSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select * from Products where ProductName like @productName";
+
+                    SqlCommand command = new SqlCommand(sql,connection);
+                    command.Parameters.AddWithValue("@ProductName" ,"%"+ProductName+"%"); 
+
+                    SqlDataReader reader = command.ExecuteReader();
+
+                    products = new List<Product>();
+
+                    while (reader.Read())
+                    {
+                        products.Add(
+                            new Product
+                            {
+                                ProductId = int.Parse(reader["ProductID"].ToString()),
+                                Name = reader["ProductName"].ToString(),
+                                Price = double.Parse(reader["UnitPrice"]?.ToString())
+                            }
+                        );
+                        Console.WriteLine($"name: {reader[1]} price:  {reader[5]} ");
+                    }
+                    
+                    reader.Close();
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return products;
+        }
+
+        public int Count()
+        {
+            int count = 0;
+
+            using (var connection = GetMsSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select count(*) from products";
+
+                    SqlCommand command = new SqlCommand(sql,connection);
+                    object result =  command.ExecuteScalar();
+
+                    if (result!=null)
+                    {
+                        count = Convert.ToInt32(result);    
+                    }
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return count;
         }
     }
     
@@ -271,9 +419,15 @@ namespace dotnetVeritabani
         public ProductManager(IProductDal productDal){
             _productDal = productDal;
         }
-        public void Create(Product p)
+
+        public int Count()
         {
-            throw new NotImplementedException();
+            return _productDal.Count();
+        }
+
+        public int Create(Product p)
+        {
+            return _productDal.Create(p);
         }
 
         public void Delete(int productId)
@@ -306,24 +460,26 @@ namespace dotnetVeritabani
     {
         static void Main(string[] args)
         {
-            // var productDal = new MySQLProductDal();
-            //  var productDal2 = new MsSQLProductDal();
 
-            // var products = productDal.GetAllProducts();
-            // var products = productDal2.GetAllProducts();
+            var productDal = new ProductManager(new MsSQLProductDal());  //injection işlemi
+            var p = new Product();
+            Console.WriteLine("Ürün Ekleme İşlemine Hoşgeldiniz.");
+            Console.WriteLine("Ürün Adı giriniz.");
+            p.Name = Console.ReadLine();
+            Console.WriteLine("Ürün Fiyatı giriniz.");
+            p.Price = Convert.ToDouble(Console.ReadLine());
 
-            var productDal = new ProductManager(new MySQLProductDal());  //injection işlemi
-            // var products = productDal.GetAllProducts();
 
-            // var product = productDal.GetProductById(4);
-            var products = productDal.Find("Northwind");
+            
+            
+            int count = productDal.Create(p);
 
-            // Console.WriteLine($"{product.Name}");
+            Console.WriteLine($"Total products: {count}");
 
-            foreach (var pr in products)
-            {
-                Console.WriteLine($"Id: {pr.ProductId} name: {pr.Name} price: {pr.Price}");
-            }
+
+
+
+ 
         }
 
     }
