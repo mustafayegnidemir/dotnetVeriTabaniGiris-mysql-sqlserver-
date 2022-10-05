@@ -14,8 +14,8 @@ namespace dotnetVeritabani
         List<Product> Find(string productName);
         int Count();
         int Create(Product p);
-        void Update(Product p);
-        void Delete(int productId);
+        int Update(Product p);
+        int Delete(int productId);
     }
 
     public class MySQLProductDal : IProductDal
@@ -32,7 +32,7 @@ namespace dotnetVeritabani
             throw new NotImplementedException();
         }
 
-        public void Delete(int productId)
+        public int Delete(int productId)
         {
             throw new NotImplementedException();
         }
@@ -128,7 +128,7 @@ namespace dotnetVeritabani
 
         }
 
-        public void Update(Product p)
+        public int Update(Product p)
         {
             throw new NotImplementedException();
         }
@@ -266,7 +266,7 @@ namespace dotnetVeritabani
             
         }
 
-        public void Delete(int productId)
+        public int Delete(int productId)
         {
             throw new NotImplementedException();
         }
@@ -319,12 +319,83 @@ namespace dotnetVeritabani
 
         public Product GetProductById(int id)
         {
-            throw new NotImplementedException();
+            Product product = null;
+
+            using (var connection = GetMsSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select * from Products where ProductId=@productid ";
+
+                    SqlCommand command = new SqlCommand(sql,connection);
+                    command.Parameters.AddWithValue("@productid",id); 
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    reader.Read();
+                    if (reader.HasRows)
+                    {
+                        product = new Product()
+                        {
+                            ProductId = int.Parse(reader["ProductId"].ToString()),
+                            Name = reader["ProductName"].ToString(),
+                            Price = double.Parse(reader["UnitPrice"].ToString())
+                        };
+                           
+                    }
+                    reader.Close();
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return product;
+
         }
 
-        public void Update(Product p)
+        public int Update(Product p)
         {
-            throw new NotImplementedException();
+            int result = 0;
+            using (var connection = GetMsSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+                    // sql injection
+                    
+                    string sql = "UPDATE Products SET ProductName=@productname, UnitPrice=@unitprice WHERE ProductId=@productid ";
+
+                    SqlCommand command = new SqlCommand(sql,connection);
+
+                    command.Parameters.AddWithValue("@productname", p.Name);
+                    command.Parameters.AddWithValue("@unitprice", p.Price);
+                    command.Parameters.AddWithValue("@productid", p.ProductId);
+
+                    result = command.ExecuteNonQuery();
+
+                    Console.WriteLine($"{result} adet kayıt yeniden düzenlendi.");
+
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+                return result;
+            }
         }
 
         public List<Product> Find(string ProductName)
@@ -430,7 +501,7 @@ namespace dotnetVeritabani
             return _productDal.Create(p);
         }
 
-        public void Delete(int productId)
+        public int Delete(int productId)
         {
             throw new NotImplementedException();
         }
@@ -450,9 +521,9 @@ namespace dotnetVeritabani
             return _productDal.GetProductById(id);
         }
 
-        public void Update(Product p)
+        public int Update(Product p)
         {
-            throw new NotImplementedException();
+            return _productDal.Update(p);
         }
     }
     
@@ -461,6 +532,7 @@ namespace dotnetVeritabani
         static void Main(string[] args)
         {
 
+            // Ürün Ekleme
             var productDal = new ProductManager(new MsSQLProductDal());  //injection işlemi
             var p = new Product();
             Console.WriteLine("Ürün Ekleme İşlemine Hoşgeldiniz.");
@@ -469,12 +541,19 @@ namespace dotnetVeritabani
             Console.WriteLine("Ürün Fiyatı giriniz.");
             p.Price = Convert.ToDouble(Console.ReadLine());
 
-
-            
-            
             int count = productDal.Create(p);
-
             Console.WriteLine($"Total products: {count}");
+
+            //Ürün Güncelleme
+            var p2 = productDal.GetProductById(79);
+            Console.WriteLine("Ürün Güncelleme İşlemine Hoşgeldiniz.");
+            Console.WriteLine("79. nolu ürünün Adını değiştirin.");
+            p2.Name = Console.ReadLine();
+            Console.WriteLine("79. nolu ürünün Fiyatını değiştirin.");
+            p2.Price = Convert.ToDouble(Console.ReadLine());
+
+            int count2 = productDal.Update(p2);
+            Console.WriteLine($"Total updated products : {count2}");
 
 
 
