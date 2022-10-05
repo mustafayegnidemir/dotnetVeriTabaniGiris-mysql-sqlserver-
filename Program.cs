@@ -11,6 +11,7 @@ namespace dotnetVeritabani
     {
         List<Product> GetAllProducts();
         Product GetProductById(int id);
+        List<Product> Find(string productName);
         void Create(Product p);
         void Update(Product p);
         void Delete(int productId);
@@ -83,12 +84,102 @@ namespace dotnetVeritabani
 
         public Product GetProductById(int id)
         {
-            throw new NotImplementedException();
+            Product product = null;
+
+            using (var connection = GetMySqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select * from Products where id=@productId ";
+
+                    MySqlCommand command = new MySqlCommand(sql,connection);
+                    command.Parameters.Add("@productId",MySqlDbType.Int32).Value = id; 
+
+                    MySqlDataReader reader = command.ExecuteReader();
+                    reader.Read();
+                    if (reader.HasRows)
+                    {
+                        product = new Product()
+                        {
+                            ProductId = int.Parse(reader["id"].ToString()),
+                            Name = reader["product_name"].ToString(),
+                            Price = double.Parse(reader["list_price"].ToString())
+                        };
+                           
+                    }
+                    reader.Close();
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return product;
+
         }
 
         public void Update(Product p)
         {
             throw new NotImplementedException();
+        }
+
+        public List<Product> Find(string productName)
+        {
+            List<Product> products = null;
+
+            using (var connection = GetMySqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+
+                    // sql injection
+                    
+                    string sql = "select * from Products where product_name like @productName";
+
+                    MySqlCommand command = new MySqlCommand(sql,connection);
+                    command.Parameters.Add("@productName",MySqlDbType.String).Value = "%"+productName+"%"; 
+
+                    MySqlDataReader reader = command.ExecuteReader();
+
+                    products = new List<Product>();
+
+                    while (reader.Read())
+                    {
+                        products.Add(
+                            new Product
+                            {
+                                ProductId = int.Parse(reader["id"].ToString()),
+                                Name = reader["product_name"].ToString(),
+                                Price = double.Parse(reader["list_price"]?.ToString())
+                            }
+                        );
+                        Console.WriteLine($"name: {reader[3]} price:  {reader[6]} ");
+                    }
+                    
+                    reader.Close();
+                    
+                }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);                    
+                }
+                finally
+                {
+                    connection.Close();
+                }
+            }
+            return products;
+
         }
     }
 
@@ -166,7 +257,11 @@ namespace dotnetVeritabani
         {
             throw new NotImplementedException();
         }
-    
+
+        public List<Product> Find(string productName)
+        {
+            throw new NotImplementedException();
+        }
     }
     
     public class ProductManager : IProductDal
@@ -186,6 +281,11 @@ namespace dotnetVeritabani
             throw new NotImplementedException();
         }
 
+        public List<Product> Find(string productName)
+        {
+            return _productDal.Find(productName);
+        }
+
         public List<Product> GetAllProducts()
         {
             return _productDal.GetAllProducts();
@@ -193,7 +293,7 @@ namespace dotnetVeritabani
 
         public Product GetProductById(int id)
         {
-            throw new NotImplementedException();
+            return _productDal.GetProductById(id);
         }
 
         public void Update(Product p)
@@ -207,18 +307,22 @@ namespace dotnetVeritabani
         static void Main(string[] args)
         {
             // var productDal = new MySQLProductDal();
-           //  var productDal2 = new MsSQLProductDal();
+            //  var productDal2 = new MsSQLProductDal();
 
             // var products = productDal.GetAllProducts();
+            // var products = productDal2.GetAllProducts();
 
-           // var products = productDal2.GetAllProducts();
+            var productDal = new ProductManager(new MySQLProductDal());  //injection işlemi
+            // var products = productDal.GetAllProducts();
 
-           var productDal = new ProductManager(new MsSQLProductDal());
-           var products = productDal.GetAllProducts();
+            // var product = productDal.GetProductById(4);
+            var products = productDal.Find("Northwind");
+
+            // Console.WriteLine($"{product.Name}");
 
             foreach (var pr in products)
             {
-                Console.WriteLine($"name: {pr.Name} price: {pr.Price}");
+                Console.WriteLine($"Id: {pr.ProductId} name: {pr.Name} price: {pr.Price}");
             }
         }
 
